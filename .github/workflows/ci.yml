@@ -29,10 +29,42 @@ jobs:
   # งานรอง: firmware คอมไพล์ผ่านไหม (ยังไม่เปิดจนกว่า M0 จะยืนยัน toolchain)
   firmware:
     runs-on: ubuntu-latest
-    if: false # TODO(M0): เปิดเมื่อยืนยันชื่อ target และเวอร์ชัน ESP-IDF แล้ว
+    # TODO(M0): เหลือยืนยันสองอย่างก่อนเปิด — ชื่อ target ของ C5 กับเวอร์ชัน
+    # esp-idf-svc/esp-idf-hal ที่เข้ากับ IDF v5.5 (ดู docs/ROADMAP.md งานที่เหลือใน M0)
+    if: false
     steps:
       - uses: actions/checkout@v4
-      - uses: esp-rs/xtensa-toolchain@v1.5
+
+      # C5 เป็น RISC-V ใช้ Rust upstream ได้เลย ไม่ต้องใช้ toolchain fork ของ Xtensa
+      # (ดู firmware/kaam-fw/rust-toolchain.toml — rustup จะติดตั้ง channel, target
+      # และ component ตามไฟล์นั้นเองตอน cargo ทำงานในโฟลเดอร์ firmware)
+
+      - name: prerequisite ของ ESP-IDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git wget flex bison gperf cmake ninja-build ccache \
+            python3 python3-pip python3-venv \
+            libffi-dev libssl-dev dfu-util libusb-1.0-0
+
+      # ESP-IDF ที่ embuild ดาวน์โหลดมามีขนาดหลาย GB ไม่แคชไว้คือรอทุกครั้ง
+      - name: แคช ESP-IDF
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.espressif
+            firmware/kaam-fw/.embuild
+          key: espidf-${{ runner.os }}-v5.5-${{ hashFiles('firmware/kaam-fw/Cargo.toml') }}
+          restore-keys: espidf-${{ runner.os }}-v5.5-
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: firmware/kaam-fw
+
+      # linker wrapper ที่ .cargo/config.toml เรียกใช้ ต้องมีก่อนถึงจะ link ได้
+      - name: ติดตั้ง ldproxy
+        run: cargo install ldproxy --locked
+
       - name: build
         working-directory: firmware/kaam-fw
         run: cargo build --release
