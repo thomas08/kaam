@@ -1,3 +1,5 @@
+> Read in English: [README.en.md](README.en.md)
+
 # Kaam (ก้าม)
 
 AI agent harness ที่รันเองได้ครบบนชิป ESP32-C5 ราคาไม่กี่ร้อยบาท
@@ -12,8 +14,8 @@ your machine. your agent. ก้ามเดียวก็พอ.
 
 ## สถานะ
 
-**M0** — โครงพร้อม เทสต์บน host ผ่าน firmware ยังเป็นโครงเปล่า
-ดู [docs/ROADMAP.md](docs/ROADMAP.md)
+**M0** — โครงพร้อม เทสต์บน host ผ่าน 66 ตัว firmware คอมไพล์เป็น esp32c5 ได้แล้ว
+แต่ยังเป็นโครงเปล่าและ**ยังไม่เคยรันบนบอร์ดจริง** ดู [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## ทำไมถึงน่าสนใจ
 
