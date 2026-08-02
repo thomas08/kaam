@@ -26,8 +26,25 @@
 
 ## งานที่เหลือใน M0
 
-1. ยืนยันชื่อ target ของ ESP32-C5 (ตั้งไว้ `riscv32imac-esp-espidf`)
-2. ยืนยันเวอร์ชัน ESP-IDF ที่รองรับ C5 (ตั้งไว้ v5.5)
-3. ยืนยันเวอร์ชัน `esp-idf-svc` / `esp-idf-hal` ที่เข้ากัน
-4. ตรวจว่ายังต้อง nightly เพราะ `build-std` หรือ stable พอแล้ว
-5. เปิด job `firmware` ใน CI (ตอนนี้ `if: false`)
+ยืนยันแล้วด้วยการ build จริงบน ESP-IDF v5.5:
+
+1. ✅ target คือ `riscv32imac-esp-espidf` — `toolchain-esp32c5.cmake` ใช้
+   `-march=rv32imac_zicsr_zifencei` เหมือน C6 และ `esp-idf-sys` แมป target นี้
+   เป็น `[C6, C5, H2]` โดยมี **C6 เป็นค่าเริ่มต้น** — `MCU=esp32c5` จึงห้ามลบ
+2. ✅ ESP-IDF v5.5 build C5 ได้ แต่ C5 อยู่ใน `PREVIEW_TARGETS` ไม่ใช่
+   `SUPPORTED_TARGETS` (`idf.py --list-targets` ไม่แสดง ต้องใส่ `--preview`)
+3. ✅ ต้องใช้ `esp-idf-svc 0.52` / `esp-idf-hal 0.46` / `esp-idf-sys 0.37`
+   — ชุด 0.51/0.45/0.36 คอมไพล์ไม่ผ่านเพราะ binding ไม่ตรงกับ IDF v5.5
+4. ✅ **ยังต้องใช้ nightly** — `rustup target add riscv32imac-esp-espidf` บน stable
+   ตอบว่า "no prebuilt artifacts available" จึงต้อง `build-std` ซึ่งเป็น nightly-only
+5. ⬜ เปิด job `firmware` ใน CI
+
+### ตัวเลขฐานแรก (M0, main.rs ยังเป็นโครงเปล่า)
+
+| ตัวชี้วัด | ค่า |
+|---|---|
+| binary | 443,712 ไบต์ (0.42 MB) — 15% ของเพดาน 2.8 MB |
+| ใช้ ota_0 | 12% ของ 3.5 MB |
+
+**อย่าเอาไปอ้างว่าเหลืองบเยอะ** — ยังไม่มี WiFi, TLS, mbedTLS, Telegram หรือ
+provider เลย §16 ประเมินว่าพอมี TLS จะขึ้นไป 1.5–2.5 MB ตัวเลขนี้เป็นพื้น ไม่ใช่ตัวแทน

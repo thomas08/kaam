@@ -6,7 +6,8 @@
 //! สถานะ: M0 — โครงเปล่า ยังไม่ได้ต่อ WiFi
 //! ดู docs/ROADMAP.md ว่าอะไรมาก่อนหลัง
 
-use esp_idf_svc::hal::prelude::Peripherals;
+// hal 0.46 ถอดโมดูล `prelude` ออกแล้ว Peripherals ย้ายมาอยู่ที่ `peripherals`
+use esp_idf_svc::hal::peripherals::Peripherals;
 use esp_idf_svc::log::EspLogger;
 use esp_idf_svc::sys::link_patches;
 

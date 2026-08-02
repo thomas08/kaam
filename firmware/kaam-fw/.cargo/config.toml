@@ -1,6 +1,6 @@
 [build]
-# TODO(M0): ยืนยันชื่อ target ของ C5 ตอนติดตั้ง ESP-IDF จริง
-# C6 ใช้ riscv32imac-esp-espidf และ C5 ควรเหมือนกัน แต่ต้องตรวจก่อน
+# ยืนยันแล้วกับ ESP-IDF v5.5: toolchain-esp32c5.cmake ใช้ -march=rv32imac_zicsr_zifencei
+# เหมือน C6 ทุกตัวอักษร และ esp-idf-sys แมป riscv32imac-esp-espidf -> [C6, C5, H2]
 target = "riscv32imac-esp-espidf"
 
 [target.riscv32imac-esp-espidf]
@@ -12,6 +12,13 @@ rustflags = ["--cfg", "espidf_time64"]
 build-std = ["std", "panic_abort"]
 
 [env]
+# ห้ามลบ — target riscv32imac-esp-espidf แมปได้ทั้ง C6/C5/H2 และ esp-idf-sys
+# เลือก C6 เป็นค่าเริ่มต้น ถ้าไม่ระบุ MCU จะได้ binary ของ C6 โดยไม่มีคำเตือน
 MCU = "esp32c5"
-# C5 ต้องการ ESP-IDF v5.4 ขึ้นไป
+# C5 ต้องการ ESP-IDF v5.4 ขึ้นไป (ใน v5.5 ยังเป็น PREVIEW_TARGETS ไม่ใช่ SUPPORTED)
 ESP_IDF_VERSION = "v5.5"
+
+# esp-idf-sys build ที่ OUT_DIR ทำให้ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME
+# ที่เป็น path สัมพัทธ์หาไฟล์ไม่เจอ ต้องบอกให้คัดลอก partitions.csv เข้าไปก่อน
+ESP_IDF_GLOB_PARTITION_BASE = { value = ".", relative = true }
+ESP_IDF_GLOB_PARTITION_CSV = "partitions.csv"

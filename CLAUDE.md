@@ -156,10 +156,16 @@ comment และข้อความ assert เขียนเป็นภา�
 `docs/ROADMAP.md` มีเกณฑ์ผ่านของแต่ละ milestone — สรุป: **M1 กับ M2 จะกินเวลามากกว่าที่คิด 2–3 เท่า**
 เพราะปัญหา heap และ TLS ทั้งหมดจะโผล่ตรงนั้น
 
-`firmware/` ทั้งโฟลเดอร์ยังไม่เคยคอมไพล์จริง ค่าที่ยังเป็นการเดาและมี `TODO(M0)` กำกับไว้:
+`firmware/` คอมไพล์ผ่านแล้วบน ESP-IDF v5.5 (ดู `docs/ROADMAP.md` สำหรับค่าที่ยืนยันแล้ว)
+สิ่งที่ต้องรู้เวลาแตะฝั่งนี้:
 
-1. ชื่อ target ของ C5 — ตั้งไว้ `riscv32imac-esp-espidf` ตาม C6 (`firmware/kaam-fw/.cargo/config.toml`)
-2. เวอร์ชัน ESP-IDF ที่รองรับ C5 — ตั้งไว้ v5.5
-3. เวอร์ชัน `esp-idf-svc` 0.51 / `esp-idf-hal` 0.45 ที่เข้ากับ IDF นั้น
-4. ว่ายังต้อง nightly เพราะ `build-std` หรือ stable พอแล้ว (`firmware/kaam-fw/rust-toolchain.toml`)
-5. job `firmware` ใน CI ยังปิดอยู่ด้วย `if: false` — เปิดเมื่อยืนยันสี่ข้อบน
+1. **`MCU = "esp32c5"` ใน `.cargo/config.toml` ห้ามลบ** — target `riscv32imac-esp-espidf`
+   แมปได้ทั้ง C6/C5/H2 และ `esp-idf-sys` เลือก C6 เป็นค่าเริ่มต้น ลบแล้วจะได้ binary
+   ของผิดชิปโดยไม่มีคำเตือน
+2. **`partitions.csv` ต้องถูกคัดลอกเข้า `OUT_DIR`** ผ่าน `ESP_IDF_GLOB_PARTITION_*`
+   เพราะ esp-idf-sys build นอก crate root ทำให้ path สัมพัทธ์ใน sdkconfig หาไฟล์ไม่เจอ
+3. **`CONFIG_ESPTOOLPY_FLASHSIZE_16MB` ต้องตั้งคู่กับ `partitions.csv` เสมอ** —
+   ค่าเริ่มต้นของ ESP-IDF คือ 2 MB ซึ่งตารางพาร์ทิชัน 15.9 MB ลงไม่ได้
+4. **ยังต้องใช้ nightly** — target นี้ไม่มี std สำเร็จรูป ต้อง `build-std` ซึ่ง nightly เท่านั้น
+5. **C5 เป็น preview target ใน IDF v5.5** — API ข้างล่างยังไม่นิ่ง อย่าแปลกใจถ้าอัป IDF แล้วพัง
+6. job `firmware` ใน CI ยังปิดอยู่ด้วย `if: false`

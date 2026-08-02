@@ -22,9 +22,11 @@ kaam-skills   = { path = "../../crates/kaam-skills" }
 kaam-mcp      = { path = "../../crates/kaam-mcp" }
 kaam-chat     = { path = "../../crates/kaam-chat" }
 
-esp-idf-svc = { version = "0.51", features = ["critical-section", "embassy-time-driver"] }
-esp-idf-hal = "0.45"
-esp-idf-sys = "0.36"
+# ยืนยันกับ ESP-IDF v5.5 แล้ว: 0.51/0.45/0.36 คอมไพล์ไม่ผ่าน เพราะ binding ของ
+# hal 0.45 ไม่ตรงกับ IDF v5.5 (twai_timing_config_t, gpio_config_t.hys_ctrl_mode ฯลฯ)
+esp-idf-svc = { version = "0.52", features = ["critical-section", "embassy-time-driver"] }
+esp-idf-hal = "0.46"
+esp-idf-sys = "0.37"
 log = "0.4"
 anyhow = "1"
 

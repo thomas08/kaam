@@ -1,6 +1,12 @@
 # ค่าตั้งที่ ARCHITECTURE.md §3 ระบุว่าเป็นสัญญา ไม่ใช่คำแนะนำ
 # แก้ค่าพวกนี้ต้องอัปเดตงบประมาณหน่วยความจำในเอกสารด้วย
 
+# ---- แฟลช 16 MB (โมดูล N16R8) ----
+# ต้องตั้งคู่กับ partitions.csv เสมอ ค่าเริ่มต้นของ ESP-IDF คือ 2 MB ซึ่งทำให้
+# ตารางพาร์ทิชันที่กินถึง 0xFF0000 (15.9 MB) ถูกปฏิเสธตั้งแต่ตอน build
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
