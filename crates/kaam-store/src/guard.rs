@@ -9,7 +9,8 @@ pub const ROOT: &str = "/kaam/";
 ///
 /// `identity/` แก้ได้ทางเดียวคือผ่าน propose_soul_edit ที่มีคนอนุมัติ
 /// `config/` แก้ได้ทางเดียวคือ serial console
-const WRITE_DENY: &[&str] = &["/kaam/identity/", "/kaam/config/"];
+/// เก็บแบบไม่มี `/` ปิดท้าย เพื่อกันทั้งตัวไดเรกทอรีเองและทุกอย่างข้างใน
+const WRITE_DENY: &[&str] = &["/kaam/identity", "/kaam/config"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PathError {
@@ -40,7 +41,13 @@ pub fn sandbox_check(path: &str) -> Result<(), PathError> {
 /// ตรวจว่า path เขียนได้ไหม — เข้มกว่า `sandbox_check`
 pub fn write_check(path: &str) -> Result<(), PathError> {
     sandbox_check(path)?;
-    if WRITE_DENY.iter().any(|d| path.starts_with(d)) {
+    let p = path.trim_end_matches('/');
+    // ต้องเทียบทีละ segment ไม่ใช่ prefix ดิบ ๆ ไม่งั้น "/kaam/identity" (ไม่มี /)
+    // หลุด ส่วน "/kaam/configX" ที่ไม่เกี่ยวข้องกลับโดนบล็อกผิด ๆ
+    let denied = WRITE_DENY
+        .iter()
+        .any(|d| p == *d || (p.starts_with(d) && p.as_bytes().get(d.len()) == Some(&b'/')));
+    if denied {
         return Err(PathError::Protected);
     }
     Ok(())
@@ -89,5 +96,20 @@ mod tests {
     #[test]
     fn does_not_overblock_dotted_filenames() {
         assert!(sandbox_check("/kaam/memory/..hidden.md").is_ok());
+    }
+
+    /// ตัวไดเรกทอรีเองก็ห้ามเขียน ไม่ใช่แค่ของข้างใน
+    #[test]
+    fn protects_the_directory_itself_not_just_its_contents() {
+        for p in ["/kaam/identity", "/kaam/config", "/kaam/identity/"] {
+            assert_eq!(write_check(p), Err(PathError::Protected), "หลุดที่ {p}");
+        }
+    }
+
+    /// ชื่อที่ขึ้นต้นเหมือน path ต้องห้ามแต่คนละอัน ต้องเขียนได้
+    #[test]
+    fn does_not_overblock_similarly_named_paths() {
+        assert!(write_check("/kaam/configuration.md").is_ok());
+        assert!(write_check("/kaam/identity-notes.md").is_ok());
     }
 }

@@ -64,6 +64,7 @@ impl Store for MemStore {
     }
 
     fn list(&self, prefix: &str) -> Result<Vec<String>, StoreError> {
+        sandbox_check(prefix).map_err(StoreError::Denied)?;
         Ok(self
             .files
             .keys()
@@ -120,6 +121,18 @@ mod tests {
             s.write("/kaam/../etc/passwd", "x"),
             Err(StoreError::Denied(_))
         ));
+    }
+
+    /// `list` เป็นทางรั่วได้เหมือน `read` — ต้องผ่าน guard เหมือนกันทุกเมธอด
+    #[test]
+    fn list_is_guarded_like_every_other_method() {
+        let s = MemStore::new().with_file("/kaam/memory/a.md", "x");
+        assert!(matches!(s.list("/etc/"), Err(StoreError::Denied(_))));
+        assert!(matches!(
+            s.list("/kaam/../etc/"),
+            Err(StoreError::Denied(_))
+        ));
+        assert_eq!(s.list("/kaam/memory/").unwrap().len(), 1);
     }
 
     #[test]

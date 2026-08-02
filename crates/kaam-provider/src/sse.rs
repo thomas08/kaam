@@ -15,6 +15,8 @@ pub struct SseEvent {
     pub name: String,
     /// ค่าจากฟิลด์ `data:` ต่อกันด้วย `\n` ถ้ามีหลายบรรทัด
     pub data: String,
+    /// true ถ้า event นี้ชนเพดานจนถูกตัด — `data` ไม่ครบ ห้ามเอาไป parse ต่อ
+    pub truncated: bool,
 }
 
 #[derive(Debug, Default)]
@@ -22,6 +24,9 @@ pub struct SseDecoder {
     line_buf: Vec<u8>,
     event_name: String,
     data: String,
+    /// ธงของ event ที่กำลังประกอบอยู่ ล้างทุกครั้งที่คาย event ออกไป
+    event_truncated: bool,
+    /// ธงระดับ session ค้างไว้ตลอด ใช้ตัดสินว่าจะเชื่อ stream นี้ต่อไหม
     overflowed: bool,
 }
 
@@ -43,7 +48,7 @@ impl SseDecoder {
                 if self.line_buf.len() < MAX_EVENT_BYTES {
                     self.line_buf.push(byte);
                 } else {
-                    self.overflowed = true;
+                    self.mark_truncated();
                 }
             }
         }
@@ -55,15 +60,22 @@ impl SseDecoder {
         self.overflowed
     }
 
+    fn mark_truncated(&mut self) {
+        self.event_truncated = true;
+        self.overflowed = true;
+    }
+
     fn handle_line(&mut self, line: &[u8]) -> Option<SseEvent> {
         // บรรทัดว่าง = จบหนึ่ง event
         if line.is_empty() {
             if self.data.is_empty() && self.event_name.is_empty() {
+                self.event_truncated = false;
                 return None;
             }
             return Some(SseEvent {
                 name: std::mem::take(&mut self.event_name),
                 data: std::mem::take(&mut self.data),
+                truncated: std::mem::take(&mut self.event_truncated),
             });
         }
 
@@ -84,10 +96,16 @@ impl SseDecoder {
         match field {
             "event" => self.event_name = value.to_string(),
             "data" => {
-                if !self.data.is_empty() {
-                    self.data.push('\n');
+                // เพดานต้องคุม `data` ที่สะสมข้ามหลายบรรทัดด้วย ไม่ใช่แค่บรรทัดเดียว
+                // ไม่งั้น server ที่ส่ง `data:` รัวโดยไม่เว้นบรรทัดว่างทำให้ heap แตก
+                if self.data.len() + value.len() + 1 > MAX_EVENT_BYTES {
+                    self.mark_truncated();
+                } else {
+                    if !self.data.is_empty() {
+                        self.data.push('\n');
+                    }
+                    self.data.push_str(value);
                 }
-                self.data.push_str(value);
             }
             _ => {} // id / retry — ยังไม่ใช้
         }
@@ -154,5 +172,31 @@ mod tests {
         let mut d = SseDecoder::new();
         let events = d.feed(b"data: line1\ndata: line2\n\n");
         assert_eq!(events[0].data, "line1\nline2");
+        assert!(!events[0].truncated);
+    }
+
+    /// server ที่ส่ง `data:` รัวโดยไม่เว้นบรรทัดว่าง ต้องไม่ทำให้ heap โตไม่จำกัด
+    #[test]
+    fn caps_data_accumulated_across_many_lines() {
+        let mut d = SseDecoder::new();
+        for _ in 0..20_000 {
+            d.feed(b"data: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
+        }
+        assert!(d.overflowed(), "ต้องรู้ตัวว่าชนเพดาน");
+        let ev = d.feed(b"\n");
+        assert!(ev[0].data.len() <= MAX_EVENT_BYTES);
+        assert!(ev[0].truncated, "event ที่ไม่ครบต้องบอกผู้เรียกด้วย");
+    }
+
+    /// event ที่ถูกตัดต้องติดธงมากับตัวเอง ไม่ใช่ให้ผู้เรียกไปถามทีหลัง
+    #[test]
+    fn truncation_flag_resets_between_events() {
+        let mut d = SseDecoder::new();
+        d.feed(&[b"data: ".to_vec(), vec![b'x'; MAX_EVENT_BYTES + 10]].concat());
+        let first = d.feed(b"\n\n");
+        assert!(first[0].truncated);
+
+        let second = d.feed("data: สั้น\n\n".as_bytes());
+        assert!(!second[0].truncated, "event ถัดไปต้องไม่ติดธงค้าง");
     }
 }

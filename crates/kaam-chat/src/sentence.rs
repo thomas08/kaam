@@ -27,16 +27,12 @@ impl SentenceSplitter {
         self.buf.push_str(delta);
         let mut out = Vec::new();
 
-        loop {
-            if let Some(idx) = self.find_boundary() {
-                let rest = self.buf.split_off(idx);
-                let chunk = std::mem::replace(&mut self.buf, rest);
-                let trimmed = chunk.trim().to_string();
-                if !trimmed.is_empty() {
-                    out.push(trimmed);
-                }
-            } else {
-                break;
+        while let Some(idx) = self.find_boundary() {
+            let rest = self.buf.split_off(idx);
+            let chunk = std::mem::replace(&mut self.buf, rest);
+            let trimmed = chunk.trim().to_string();
+            if !trimmed.is_empty() {
+                out.push(trimmed);
             }
         }
         out
@@ -53,19 +49,32 @@ impl SentenceSplitter {
     fn find_boundary(&self) -> Option<usize> {
         for (i, c) in self.buf.char_indices() {
             if TERMINATORS.contains(&c) {
-                // ตัวเลขทศนิยม เช่น 3.14 ไม่ใช่จุดจบประโยค
-                if c == '.' && self.is_inside_number(i) {
-                    continue;
+                if c == '.' {
+                    // ตัวเลขทศนิยม เช่น 3.14 ไม่ใช่จุดจบประโยค
+                    if self.is_inside_number(i) {
+                        continue;
+                    }
+                    // จุดอยู่ท้ายบัฟเฟอร์พอดีและมีเลขนำหน้า — ยังแยกไม่ออกว่า
+                    // เป็น "3.14" หรือจบประโยคจริง ต้องรอ delta ถัดไปก่อน
+                    if self.is_pending_decimal_point(i) {
+                        break;
+                    }
                 }
                 return Some(i + c.len_utf8());
             }
         }
-        // ยาวเกินเพดานแล้วยังไม่เจอขอบ — ตัดที่ช่องว่างล่าสุด
+        // ยาวเกินเพดานแล้วยังไม่เจอขอบ — ตัดที่ช่องว่างล่าสุด **ภายในเพดาน**
+        // (ค้นทั้งบัฟเฟอร์จะได้ชิ้นยาวเกิน MAX_CHUNK_CHARS ซึ่งลบล้างเหตุผลของเพดาน)
         if self.buf.chars().count() > MAX_CHUNK_CHARS {
-            if let Some(sp) = self.buf.rfind(' ') {
+            let limit = self
+                .buf
+                .char_indices()
+                .nth(MAX_CHUNK_CHARS)
+                .map_or(self.buf.len(), |(i, _)| i);
+            if let Some(sp) = self.buf[..limit].rfind(' ') {
                 return Some(sp + 1);
             }
-            return self.buf.char_indices().nth(MAX_CHUNK_CHARS).map(|(i, _)| i);
+            return Some(limit);
         }
         None
     }
@@ -74,6 +83,12 @@ impl SentenceSplitter {
         let before = self.buf[..dot].chars().next_back();
         let after = self.buf[dot + 1..].chars().next();
         matches!((before, after), (Some(b), Some(a)) if b.is_ascii_digit() && a.is_ascii_digit())
+    }
+
+    /// จุดที่เป็นตัวอักษรสุดท้ายของบัฟเฟอร์และมีเลขนำหน้า — ยังตัดสินไม่ได้
+    fn is_pending_decimal_point(&self, dot: usize) -> bool {
+        self.buf[dot + 1..].chars().next().is_none()
+            && matches!(self.buf[..dot].chars().next_back(), Some(b) if b.is_ascii_digit())
     }
 }
 
@@ -114,6 +129,34 @@ mod tests {
         let long: String = "ก".repeat(400);
         let out = s.feed(&long);
         assert!(!out.is_empty(), "ข้อความยาวไม่มีเครื่องหมายต้องถูกบังคับตัด");
+    }
+
+    /// ช่องว่างที่อยู่นอกเพดานต้องไม่ถูกใช้เป็นจุดตัด ไม่งั้นชิ้นจะยาวเกินงบดีเลย์
+    #[test]
+    fn force_split_never_exceeds_the_cap() {
+        let mut s = SentenceSplitter::new();
+        let out = s.feed(&format!("{}{}{}", "ก".repeat(390), " ", "ข".repeat(9)));
+        assert!(!out.is_empty());
+        assert!(
+            out[0].chars().count() <= MAX_CHUNK_CHARS,
+            "ได้ชิ้นยาว {} ตัวอักษร ทั้งที่เพดานคือ {MAX_CHUNK_CHARS}",
+            out[0].chars().count()
+        );
+    }
+
+    /// delta ขาดหลังจุดทศนิยมพอดี ต้องรอ ไม่ใช่ตัดเลขครึ่ง
+    #[test]
+    fn waits_when_chunk_ends_on_a_decimal_point() {
+        let mut s = SentenceSplitter::new();
+        assert!(s.feed("ราคา 3.").is_empty(), "ต้องรอ delta ถัดไป");
+        assert_eq!(s.feed("14 บาท. จบ"), vec!["ราคา 3.14 บาท."]);
+    }
+
+    /// จุดจบประโยคปกติที่ไม่มีเลขนำหน้า ต้องคายทันที ไม่ต้องรอ
+    #[test]
+    fn does_not_delay_ordinary_sentence_end() {
+        let mut s = SentenceSplitter::new();
+        assert_eq!(s.feed("จบแล้ว."), vec!["จบแล้ว."]);
     }
 
     #[test]

@@ -10,7 +10,7 @@ pub struct Usage {
 
 impl Usage {
     pub fn total(&self) -> u32 {
-        self.input_tokens + self.output_tokens
+        self.input_tokens.saturating_add(self.output_tokens)
     }
 }
 
@@ -70,9 +70,12 @@ impl BudgetTracker {
         Ok(())
     }
 
+    /// บวกแบบอิ่มตัว — ถ้าล้นแล้ว wrap ตัวนับจะย้อนกลับไปศูนย์และเพดานรายวันหลุด
+    /// ค้างที่ `u32::MAX` แทน ทำให้ `check` ปฏิเสธเทิร์นใหม่ ซึ่งเป็นฝั่งที่ปลอดภัยกว่า
     pub fn record(&mut self, usage: Usage) {
-        self.turn_tokens += usage.total();
-        self.daily_tokens += usage.total();
+        let total = usage.total();
+        self.turn_tokens = self.turn_tokens.saturating_add(total);
+        self.daily_tokens = self.daily_tokens.saturating_add(total);
     }
 }
 
@@ -84,7 +87,12 @@ pub fn truncate_tool_result(s: &str, max_bytes: usize) -> (String, bool) {
         return (s.to_string(), false);
     }
     const NOTE: &str = "\n\n[ถูกตัดเพราะเกินงบผลลัพธ์]";
-    let room = max_bytes.saturating_sub(NOTE.len());
+    // ถ้างบเล็กกว่าหมายเหตุ ใส่หมายเหตุไม่ได้เลย — ตัดดิบ ๆ ดีกว่าคืนค่าเกินงบ
+    let (room, note) = if max_bytes >= NOTE.len() {
+        (max_bytes - NOTE.len(), NOTE)
+    } else {
+        (max_bytes, "")
+    };
     let mut end = 0;
     for (i, _) in s.char_indices() {
         if i > room {
@@ -92,7 +100,7 @@ pub fn truncate_tool_result(s: &str, max_bytes: usize) -> (String, bool) {
         }
         end = i;
     }
-    (format!("{}{}", &s[..end], NOTE), true)
+    (format!("{}{}", &s[..end], note), true)
 }
 
 #[cfg(test)]
@@ -137,5 +145,38 @@ mod tests {
         let (out, truncated) = truncate_tool_result("สั้น", 512);
         assert_eq!(out, "สั้น");
         assert!(!truncated);
+    }
+
+    /// งบเล็กกว่าข้อความหมายเหตุก็ยังห้ามคืนค่าเกินงบ — ค่านี้ตั้งได้ใน settings.json
+    #[test]
+    fn never_exceeds_the_budget_even_when_tiny() {
+        let thai = "ก้ามปูทะเล".repeat(200);
+        for max_bytes in [0usize, 8, 32, 64, 75, 76, 512] {
+            let (out, truncated) = truncate_tool_result(&thai, max_bytes);
+            assert!(truncated);
+            assert!(
+                out.len() <= max_bytes,
+                "max_bytes={max_bytes} แต่คืน {} ไบต์",
+                out.len()
+            );
+        }
+    }
+
+    /// ตัวนับ token ห้าม wrap เพราะจะทำให้เพดานรายวันหลุดเงียบ ๆ
+    #[test]
+    fn token_counters_saturate_instead_of_wrapping() {
+        let mut t = BudgetTracker {
+            daily_tokens: u32::MAX - 1,
+            ..Default::default()
+        };
+        t.record(Usage {
+            input_tokens: 100,
+            output_tokens: 100,
+        });
+        assert_eq!(t.daily_tokens, u32::MAX);
+        assert_eq!(
+            t.check(&Budget::default()),
+            Err(BudgetError::DailyTokensExceeded)
+        );
     }
 }

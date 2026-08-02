@@ -42,6 +42,9 @@ lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = true
+# ต้องตรงกับ profile ของ workspace ไม่งั้นเลขคณิตที่ panic ดัง ๆ ตอนเทสต์บนพีซี
+# จะ wrap เงียบ ๆ บนชิป ซึ่งลบล้างเหตุผลทั้งหมดของการทดสอบบน host
+overflow-checks = true
 
 [profile.dev]
 opt-level = "z"

@@ -40,6 +40,13 @@ impl TurnState {
     pub fn next(self, ev: Event) -> TurnState {
         use Event::*;
         use TurnState::*;
+
+        // สถานะปลายทางดูดกลืนทุกเหตุการณ์ เทิร์นที่จบไปแล้วห้ามถูกเขียนทับ
+        // โดยเฉพาะ Cancelled ที่มาช้ากว่าคำตอบเพียงเสี้ยววินาที
+        if self.is_terminal() {
+            return self;
+        }
+
         match (self, ev) {
             (Idle, Started) => Assemble,
             (Assemble, PromptReady) => Stream,
@@ -91,6 +98,20 @@ mod tests {
                 TurnState::Failed(TurnError::CancelledByUser)
             );
         }
+    }
+
+    /// ปุ่มยกเลิกที่กดช้ากว่าคำตอบต้องไม่เปลี่ยนเทิร์นที่สำเร็จให้กลายเป็นล้มเหลว
+    #[test]
+    fn cancel_cannot_undo_a_finished_turn() {
+        let done = TurnState::Idle
+            .next(Event::Started)
+            .next(Event::PromptReady)
+            .next(Event::ProviderDone(StopReason::EndTurn));
+        assert_eq!(
+            done.clone().next(Event::Cancelled),
+            TurnState::Finalize(StopReason::EndTurn)
+        );
+        assert_eq!(done.clone().next(Event::Started), done);
     }
 
     #[test]
