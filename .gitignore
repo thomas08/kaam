@@ -5,3 +5,6 @@ sdkconfig.old
 *.log
 .DS_Store
 secrets.toml
+
+# Claude Code local config — เป็นของเครื่องแต่ละคน ไม่ใช่ของโปรเจกต์
+.claude/
