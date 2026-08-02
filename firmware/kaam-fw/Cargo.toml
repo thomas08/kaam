@@ -1,0 +1,48 @@
+[package]
+name = "kaam-fw"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+resolver = "2"
+
+# crate นี้อยู่นอก workspace หลักโดยตั้งใจ — มันคอมไพล์ด้วย target ของ ESP
+# ทำให้ `cargo test` ที่ root รันบน host ได้โดยไม่ต้องมี ESP-IDF ติดตั้ง
+
+[[bin]]
+name = "kaam-fw"
+harness = false
+
+[dependencies]
+kaam-types    = { path = "../../crates/kaam-types" }
+kaam-provider = { path = "../../crates/kaam-provider" }
+kaam-agent    = { path = "../../crates/kaam-agent" }
+kaam-tools    = { path = "../../crates/kaam-tools" }
+kaam-store    = { path = "../../crates/kaam-store" }
+kaam-skills   = { path = "../../crates/kaam-skills" }
+kaam-mcp      = { path = "../../crates/kaam-mcp" }
+kaam-chat     = { path = "../../crates/kaam-chat" }
+
+esp-idf-svc = { version = "0.51", features = ["critical-section", "embassy-time-driver"] }
+esp-idf-hal = "0.45"
+esp-idf-sys = "0.36"
+log = "0.4"
+anyhow = "1"
+
+[build-dependencies]
+embuild = "0.33"
+
+[features]
+default = []
+# เสียงเป็นตัวเลือกเสริม — บอร์ดที่ไม่มีไมค์/ลำโพงต้องทำงานได้ครบผ่าน Telegram
+voice = []
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = "z"
+debug = true

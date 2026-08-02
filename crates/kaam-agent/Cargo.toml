@@ -1,0 +1,11 @@
+[package]
+name = "kaam-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kaam-types    = { workspace = true }
+kaam-provider = { workspace = true }
+kaam-tools    = { workspace = true }
+kaam-skills   = { workspace = true }

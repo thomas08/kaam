@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # งานหลัก: logic ทั้งหมดต้องทดสอบได้โดยไม่ต้องมี ESP-IDF
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - name: crates/ ต้องไม่ depend ESP-IDF
+        run: ./scripts/check-no-esp-idf.sh
+
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+
+  # งานรอง: firmware คอมไพล์ผ่านไหม (ยังไม่เปิดจนกว่า M0 จะยืนยัน toolchain)
+  firmware:
+    runs-on: ubuntu-latest
+    if: false # TODO(M0): เปิดเมื่อยืนยันชื่อ target และเวอร์ชัน ESP-IDF แล้ว
+    steps:
+      - uses: actions/checkout@v4
+      - uses: esp-rs/xtensa-toolchain@v1.5
+      - name: build
+        working-directory: firmware/kaam-fw
+        run: cargo build --release
+      - name: ขนาด binary ต้องไม่เกิน 2.8 MB
+        working-directory: firmware/kaam-fw
+        run: |
+          size=$(stat -c%s target/riscv32imac-esp-espidf/release/kaam-fw)
+          echo "binary = $size bytes"
+          if [ "$size" -gt 2936012 ]; then
+            echo "binary โตเกินงบ 2.8 MB — ดู CLAUDE.md กฎข้อ 3"
+            exit 1
+          fi

@@ -1,0 +1,8 @@
+# RISC-V + std บน ESP-IDF ต้อง build-std ซึ่งต้องใช้ nightly
+# (นี่คือเหตุผลเดียวที่ยังต้อง nightly — ไม่ต้องใช้ espup เพราะไม่ใช่ Xtensa)
+#
+# TODO(M0): ตรวจว่า stable ใช้ได้หรือยัง ถ้าได้ให้เปลี่ยนเป็น stable
+[toolchain]
+channel = "nightly-2025-06-01"
+components = ["rust-src", "rustfmt", "clippy"]
+targets = ["riscv32imac-esp-espidf"]

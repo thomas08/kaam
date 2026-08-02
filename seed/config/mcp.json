@@ -1,0 +1,4 @@
+{
+  "servers": [],
+  "_comment": "รองรับเฉพาะ transport แบบ http และ sse — stdio ทำไม่ได้บน MCU"
+}

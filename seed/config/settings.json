@@ -1,0 +1,44 @@
+{
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "telegram": {
+    "allowlist": [],
+    "_comment": "ใส่ chat_id ผ่าน serial console เท่านั้น ห้าม commit ค่าจริงลง git"
+  },
+  "budget": {
+    "max_tool_rounds": 12,
+    "max_turn_seconds": 180,
+    "max_turn_tokens": 60000,
+    "max_daily_tokens": 500000,
+    "max_daily_voice_tokens": 100000,
+    "max_tool_result_bytes": 8192
+  },
+  "context": {
+    "max_messages": 40,
+    "min_free_internal_bytes": 46080,
+    "session_archive_count": 10
+  },
+  "soul_edit": {
+    "max_per_day": 1,
+    "max_per_month": 4,
+    "history_versions": 20
+  },
+  "voice": {
+    "enabled": false,
+    "mode": "push_to_talk",
+    "sample_rate": 16000,
+    "playback_ring_bytes": 131072
+  },
+  "tools": {
+    "read_file": "allow",
+    "list_dir": "allow",
+    "remember": "allow",
+    "sys_status": "allow",
+    "web_search": "allow",
+    "write_file": "confirm",
+    "edit_file": "confirm",
+    "http_get": "confirm",
+    "schedule_add": "confirm",
+    "gpio_write": "confirm"
+  }
+}

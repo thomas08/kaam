@@ -1,0 +1,4 @@
+# host toolchain สำหรับ crates/ — firmware มี rust-toolchain.toml ของตัวเอง
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

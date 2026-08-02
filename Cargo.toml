@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/kaam-types",
+    "crates/kaam-provider",
+    "crates/kaam-agent",
+    "crates/kaam-tools",
+    "crates/kaam-store",
+    "crates/kaam-skills",
+    "crates/kaam-mcp",
+    "crates/kaam-chat",
+]
+# firmware ถูก exclude โดยตั้งใจ: มันคอมไพล์ด้วย target riscv32imac-esp-espidf
+# การ exclude ทำให้ `cargo test` ที่ root รันบน host ได้ทันทีโดยไม่ต้องมี ESP-IDF
+exclude = ["firmware/kaam-fw"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/YOURNAME/kaam"
+rust-version = "1.75"
+
+[workspace.dependencies]
+kaam-types    = { path = "crates/kaam-types" }
+kaam-provider = { path = "crates/kaam-provider" }
+kaam-agent    = { path = "crates/kaam-agent" }
+kaam-tools    = { path = "crates/kaam-tools" }
+kaam-store    = { path = "crates/kaam-store" }
+kaam-skills   = { path = "crates/kaam-skills" }
+kaam-mcp      = { path = "crates/kaam-mcp" }
+kaam-chat     = { path = "crates/kaam-chat" }
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+overflow-checks = true
